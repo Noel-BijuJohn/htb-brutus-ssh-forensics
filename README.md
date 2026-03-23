@@ -322,8 +322,12 @@ htb-brutus-ssh-forensics/
 ├── LICENSE
 ├── .gitignore
 │
-├── evidence/
-│   └── sample-auth.log              ← Filtered & annotated auth.log (8 attack phases)
+├──  report
+│   ├── Brutus_Sherlock_Report.docx
+│   └── brutus-investigation-report.md
+│
+│
+├── sample-auth.log
 │
 ├── docs/                            ← Supporting analysis documents
 │   ├── investigation-notes.md       ← Detailed task-by-task analysis notes
@@ -343,4 +347,4 @@ htb-brutus-ssh-forensics/
     └── linper-download.png
 ```
 
-> 📄 Full internship report with annotated screenshots: [`Brutus_Sherlock_Report.docx`](./Brutus_Sherlock_Report.docx)
+> 📄 Full internship report with annotated screenshots: [`Brutus_Sherlock_Report.docx`](.report/Brutus_Sherlock_Report.docx)
