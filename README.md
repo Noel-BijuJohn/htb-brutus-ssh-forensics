@@ -303,6 +303,16 @@ Full rules with Elastic KQL, Splunk SPL, and Sigma format: [`docs/detection-rule
 
 ---
 
+## 🗂️ Evidence
+
+| File | Description |
+|---|---|
+| [`evidence/sample-auth.log`](./evidence/sample-auth.log) | Filtered and annotated auth.log — key attack events with analyst commentary, IOC summary, and MITRE tags |
+
+The sample log covers all 8 attack phases with inline annotations — brute force flood, automated Session 34, manual Session 37, backdoor account creation, sudo group escalation, and linper.sh download. Safe to view and use for detection rule testing.
+
+---
+
 ## 📁 Repository Structure
 
 ```
@@ -311,6 +321,9 @@ htb-brutus-ssh-forensics/
 ├── README.md                        ← This file
 ├── LICENSE
 ├── .gitignore
+│
+├── evidence/
+│   └── sample-auth.log              ← Filtered & annotated auth.log (8 attack phases)
 │
 ├── docs/                            ← Supporting analysis documents
 │   ├── investigation-notes.md       ← Detailed task-by-task analysis notes
@@ -330,4 +343,4 @@ htb-brutus-ssh-forensics/
     └── linper-download.png
 ```
 
-> 📄 Full internship report with annotated screenshots: [`Brutus_Sherlock_Report.docx`](report/Brutus_Sherlock_Report.docx)
+> 📄 Full internship report with annotated screenshots: [`Brutus_Sherlock_Report.docx`](./Brutus_Sherlock_Report.docx)
