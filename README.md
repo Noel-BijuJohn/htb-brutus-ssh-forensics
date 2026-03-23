@@ -32,7 +32,7 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 ### Failed Login Flood — auth.log
 > auth.log entries showing the repeated failed password attempts from the attacker IP.
 
-![Failed Logins](Screenshots/failed-logins.png)
+![Failed Logins](screenshots/failed-logins.png)
 
 ### Root Account Compromised — Accepted Password
 > auth.log `Accepted password` event confirming root credentials obtained from 65.2.161.68.
