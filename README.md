@@ -277,4 +277,4 @@ htb-brutus-ssh-forensics/
     └── linper-download.png
 ```
 
-> 📄 Full internship report with annotated screenshots: [`Brutus_Sherlock_Report.docx`](./Brutus_Sherlock_Report.docx)
+> 📄 Full internship report with annotated screenshots: [`Brutus_Sherlock_Report.docx`](report/Brutus_Sherlock_Report.docx)
