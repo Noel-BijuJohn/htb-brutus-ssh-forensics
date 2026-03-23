@@ -307,7 +307,7 @@ Full rules with Elastic KQL, Splunk SPL, and Sigma format: [`docs/detection-rule
 
 | File | Description |
 |---|---|
-| [`/sample-auth.log`](./sample-auth.log) | Filtered and annotated auth.log — key attack events with analyst commentary, IOC summary, and MITRE tags |
+| [`sample-auth.log`](./sample-auth.log) | Filtered and annotated auth.log — key attack events with analyst commentary, IOC summary, and MITRE tags |
 
 The sample log covers all 8 attack phases with inline annotations — brute force flood, automated Session 34, manual Session 37, backdoor account creation, sudo group escalation, and linper.sh download. Safe to view and use for detection rule testing.
 
