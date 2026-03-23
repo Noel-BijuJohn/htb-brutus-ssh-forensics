@@ -27,7 +27,7 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 ### IP Frequency Analysis — Attacker Identified
 > grep + sort + uniq revealing 65.2.161.68 with 165+ failed attempts — characteristic automated brute force volume.
 
-![IP Frequency](Screenshots/ip-frequency.png)
+![IP Frequency](screenshots/ip-frequency.png)
 
 ### Failed Login Flood — auth.log
 > auth.log entries showing the repeated failed password attempts from the attacker IP.
@@ -37,37 +37,37 @@ Full forensic investigation of a compromised Confluence server using only Unix a
 ### Root Account Compromised — Accepted Password
 > auth.log `Accepted password` event confirming root credentials obtained from 65.2.161.68.
 
-![Root Compromise](Screenshots/root-compromise.png)
+![Root Compromise](screenshots/root-compromise.png)
 
 ### Manual Session Timestamp — wtmp
 > wtmp artifact parsed via utmp.py — interactive session established at 2024-03-06 06:32:45 UTC.
 
-![wtmp Session](Screenshots/wtmp-session.png)
+![wtmp Session](screenshots/wtmp-session.png)
 
 ### Session 34 vs Session 37 — Automated vs Manual
 > auth.log showing Session 34 (automated — opened/closed same second) and Session 37 (manual interactive).
 
-![Sessions](Screenshots/sessions.png)
+![Sessions](screenshots/sessions.png)
 
 ### Backdoor Account Creation — cyberjunkie
 > auth.log `useradd` and `usermod` entries confirming cyberjunkie created and added to sudo group.
 
-![Backdoor Account](Screenshots/backdoor-account.png)
+![Backdoor Account](screenshots/backdoor-account.png)
 
 ### MITRE ATT&CK — T1136.001
 > MITRE ATT&CK framework entry for Create Account: Local Account persistence technique.
 
-![MITRE](Screenshots/mitre-t1136.png)
+![MITRE](screenshots/mitre-t1136.png)
 
 ### Session 37 Closed
 > auth.log entry showing attacker's interactive root session closed at 06:37:24 UTC.
 
-![Session End](Screenshots/session-end.png)
+![Session End](screenshots/session-end.png)
 
 ### Persistence Script Download — linper.sh
 > sudo COMMAND log entry showing cyberjunkie downloading linper.sh via curl from GitHub.
 
-![Linper Download](Screenshots/linper-download.png)
+![Linper Download](screenshots/linper-download.png)
 
 ---
 
